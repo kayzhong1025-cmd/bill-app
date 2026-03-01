@@ -616,9 +616,9 @@ export async function processAIImport(
         if (parsed.data && parsed.data.length > 0) {
           onProgress?.(1, 1);
           const rawRecords = rowsToRecords(parsed.data, documentId);
-    console.log(`[Debug] 批次 ${index + 1} 转换后未过滤记录:`, rawRecords);
-    const records = rawRecords.filter(isValidBillRecord);
-    console.log(`[Debug] 批次 ${index + 1} 过滤后有效记录:`, records);
+          console.log(`[Debug] 快速通道 - 转换后未过滤记录:`, rawRecords);
+          const records = rawRecords.filter(isValidBillRecord);
+          console.log(`[Debug] 快速通道 - 过滤后有效记录:`, records);
           const dedup = new Map<string, BillRecord>();
           for (const record of records) {
             dedup.set(record.hash, record);
