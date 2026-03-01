@@ -3,7 +3,7 @@ import { Sparkles, Loader2, AlertCircle, RefreshCw, Lightbulb, Target } from "lu
 import type { BillRecord } from "../types/bill";
 import { buildInsightContext } from "../lib/insight";
 
-const ALIYUN_MODEL = "qwen-plus";
+const ALIYUN_MODEL = "qwen-max";
 const DEFAULT_API_KEY = "";
 const INSIGHT_CACHE_KEY = "bill_insight_cache";
 const CACHE_VERSION = 3;
