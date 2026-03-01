@@ -30,11 +30,15 @@ export interface DocumentMeta {
 export interface CsvRow {
   交易时间?: string;
   日期?: string;
+  时间?: string;
   精细分类?: string;
   审计分类?: string;
   收支类型?: string;
   收支?: string;
+  交易类型?: string;
+  类型?: string;
   金额?: string;
+  "金额(元)"?: string;
   金额_净值?: string;
   交易对方?: string;
   商品说明?: string;

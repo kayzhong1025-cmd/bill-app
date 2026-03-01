@@ -3,7 +3,7 @@ import { Sparkles, Loader2, AlertCircle, RefreshCw, Lightbulb, Target } from "lu
 import type { BillRecord } from "../types/bill";
 import { buildInsightContext } from "../lib/insight";
 
-const ALIYUN_MODEL = "qwen3.5-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_API_KEY = "";
 const INSIGHT_CACHE_KEY = "bill_insight_cache";
 const CACHE_VERSION = 3;
@@ -150,17 +150,17 @@ export default function InsightTab({ records, selectedYear, selectedMonth }: Ins
 ${context}`;
 
     try {
-      const url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: ALIYUN_MODEL,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.5,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.5,
+          },
         }),
       });
 
@@ -169,8 +169,8 @@ ${context}`;
         throw new Error(errBody || `API 错误: ${res.status}`);
       }
 
-      const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-      let text = data.choices?.[0]?.message?.content ?? "";
+      const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
       let result: InsightItem[] = [];
@@ -275,7 +275,7 @@ ${context}`;
           AI 财务洞见
         </h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          使用 Gemini 3 Flash 分析您的账单数据，生成 5 条最重要的财务洞见及可改进方案。分析范围由顶部筛选栏的年份、月份决定。已生成的结果会保留，仅在选择「重新生成」时再次调用 API。
+          使用 Gemini 分析您的账单数据，生成 5 条最重要的财务洞见及可改进方案。分析范围由顶部筛选栏的年份、月份决定。已生成的结果会保留，仅在选择「重新生成」时再次调用 API。
         </p>
 
         <div className="flex flex-wrap gap-2">

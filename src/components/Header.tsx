@@ -1,4 +1,4 @@
-import { Moon, Sun, Upload, Plus, Sparkles, ShieldCheck } from "lucide-react";
+import { Moon, Sun, Upload, Plus, ShieldCheck } from "lucide-react";
 import { useRef } from "react";
 import { parseCsvText, rowsToRecords, validateCsvHeaders } from "../lib/csv";
 import type { BillRecord, ThemeMode, DocumentMeta } from "../types/bill";
@@ -8,7 +8,6 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onImport: (records: BillRecord[], documentMeta?: DocumentMeta) => void;
   onAddRecordClick: () => void;
-  onAIImportClick: () => void;
 }
 
 function safeRandomUUID() {
@@ -18,7 +17,7 @@ function safeRandomUUID() {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-export default function Header({ theme, onToggleTheme, onImport, onAddRecordClick, onAIImportClick }: HeaderProps) {
+export default function Header({ theme, onToggleTheme, onImport, onAddRecordClick }: HeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChooseFile = () => {
@@ -76,14 +75,6 @@ export default function Header({ theme, onToggleTheme, onImport, onAddRecordClic
         >
           <Plus size={16} />
           手动记账
-        </button>
-        <button
-          type="button"
-          onClick={onAIImportClick}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          <Sparkles size={16} className="text-violet-500" />
-          AI 智能导入
         </button>
         <button
           type="button"

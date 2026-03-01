@@ -1,7 +1,6 @@
 import type { BillRecord } from "../types/bill";
 
-const ALIYUN_MODEL = "qwen3.5-flash";
-const ALIYUN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 /** 根据用户描述修正账单记录 */
 export async function correctRecordsByInstruction(
@@ -46,16 +45,16 @@ ${recordsJson}
 5. amount 为非零数字（支出为正，退款为负）
 6. 若某条不需修改，保持原样`;
 
-  const res = await fetch(ALIYUN_API_URL, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: ALIYUN_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+      },
     }),
     signal,
   });
@@ -65,8 +64,8 @@ ${recordsJson}
     throw new Error(errBody || `API 错误: ${res.status}`);
   }
 
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const text = data.choices?.[0]?.message?.content ?? "";
+  const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   const cleaned = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
   const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {

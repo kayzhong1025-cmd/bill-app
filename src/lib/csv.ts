@@ -1,11 +1,11 @@
 import Papa from "papaparse";
 import type { BillRecord, CsvRow } from "../types/bill";
 
-const MIN_REQUIRED = ["交易时间", "收支类型", "金额"] as const;
+const MIN_REQUIRED = ["交易时间", "金额"] as const;
 const ALT_MAP: Record<string, string[]> = {
-  交易时间: ["日期"],
-  收支类型: ["收支"],
-  金额: ["金额_净值"],
+  交易时间: ["日期", "时间"],
+  收支类型: ["收支", "交易类型", "类型"],
+  金额: ["金额_净值", "金额(元)", "金额"],
 };
 
 function normalizeDate(input?: string) {
@@ -28,19 +28,8 @@ function normalizeDate(input?: string) {
 const cleanAmount = (val: string) => Number.parseFloat(val.replace(/[¥,]/g, ''));
 
 function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "expense" | "transfer" } | null {
-  const typeText = (row["收支类型"] ?? row["收支"])?.trim();
-  // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
-  if (typeText && typeText !== "收入" && typeText !== "支出" && typeText !== "不计收支") {
-    return null;
-  }
-
-  if (typeText === "不计收支") {
-    const raw = row["金额"] || row["金额_净值"] || "0";
-    const amount = Math.abs(cleanAmount(raw));
-    if (!Number.isFinite(amount)) return null;
-    return { amount, type: "transfer" };
-  }
-
+  const typeText = (row["收支类型"] ?? row["收支"] ?? row["交易类型"] ?? row["类型"])?.trim();
+  
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
   const netRaw = row["金额_净值"];
   if (netRaw !== undefined && netRaw.trim() !== "") {
@@ -49,18 +38,36 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
       // 净值 > 0 视为支出，净值 < 0 视为收入
       return {
         amount: Math.abs(netValue),
-        type: netValue > 0 ? "expense" : netValue < 0 ? "income" : typeText === "收入" ? "income" : "expense",
+        type: netValue > 0 ? "expense" : netValue < 0 ? "income" : (typeText && typeText.includes("收入")) ? "income" : "expense",
       };
     }
   }
 
+  // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
+  if (typeText && !typeText.includes("收入") && !typeText.includes("支出") && !typeText.includes("不计收支")) {
+    // 如果没有明确的收支类型，但有金额，默认按支出处理（兜底）
+    const raw = row["金额"] || row["金额(元)"] || "0";
+    const amount = Math.abs(cleanAmount(raw));
+    if (Number.isFinite(amount) && amount > 0) {
+      return { amount, type: "expense" };
+    }
+    return null;
+  }
+
+  if (typeText && typeText.includes("不计收支")) {
+    const raw = row["金额"] || row["金额_净值"] || row["金额(元)"] || "0";
+    const amount = Math.abs(cleanAmount(raw));
+    if (!Number.isFinite(amount)) return null;
+    return { amount, type: "transfer" };
+  }
+
   // 退级使用 "金额" 和 "收支"
-  const raw = row["金额"] || "0";
+  const raw = row["金额"] || row["金额(元)"] || row["金额_净值"] || "0";
   const amount = Math.abs(cleanAmount(raw));
   if (!Number.isFinite(amount)) return null;
 
-  if (typeText === "收入") return { amount, type: "income" };
-  if (typeText === "支出") return { amount, type: "expense" };
+  if (typeText && typeText.includes("收入")) return { amount, type: "income" };
+  if (typeText && typeText.includes("支出")) return { amount, type: "expense" };
 
   return null;
 }
@@ -70,7 +77,7 @@ export function validateCsvHeaders(headers: string[]) {
   const missing: string[] = [];
   for (const key of MIN_REQUIRED) {
     const alts = ALT_MAP[key] ?? [];
-    const hasKey = exists.has(key) || alts.some((a) => exists.has(a));
+    const hasKey = exists.has(key) || alts.some((a) => exists.has(a)) || Array.from(exists).some(h => h.includes(key) || alts.some(a => h.includes(a)));
     if (!hasKey) missing.push(key);
   }
   return { valid: missing.length === 0, missing };
@@ -87,7 +94,7 @@ export function rowsToRecords(rows: CsvRow[], documentId?: string) {
   const parsed = rows
     .map((row): BillRecord | null => {
       const parsedAmt = parseAmountAndType(row);
-      const date = normalizeDate(row["交易时间"] ?? row["日期"]);
+      const date = normalizeDate(row["交易时间"] ?? row["日期"] ?? row["时间"]);
       if (!date || !parsedAmt) return null;
 
       let { amount, type } = parsedAmt;

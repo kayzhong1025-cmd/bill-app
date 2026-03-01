@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { Sparkles, Download, PieChart, ArrowRight, ShieldCheck, HardDrive, WifiOff } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Download, PieChart, MessageSquareText, Upload, Copy, Check, HardDrive, WifiOff, ShieldCheck, ArrowRight, Sparkles } from "lucide-react";
+import { parseCsvText, rowsToRecords, validateCsvHeaders } from "./lib/csv";
 import { loadRawData, loadTheme, saveRawData, saveTheme, loadDocuments, saveDocuments, createBackup, listBackups } from "./lib/storage";
 import { getFilteredRecords, toYearOptions, toCategoryOptions } from "./lib/analytics";
 import type { BillRecord, DashboardViewType, ThemeMode, DocumentMeta } from "./types/bill";
@@ -15,9 +16,30 @@ import SearchTab from "./components/SearchTab";
 import DocumentsTab from "./components/DocumentsTab";
 import InsightTab from "./components/InsightTab";
 import HelpModal from "./components/HelpModal";
-import AIImportPage from "./components/AIImportPage";
 
 type TabKey = "dashboard" | "trend" | "search" | "insight" | "documents";
+
+const AI_PROMPT = `我有一份微信/支付宝账单文件，请帮我清洗并转换成标准化的 CSV 格式。
+
+【必须严格按此表头输出】
+交易时间,精细分类,收支,金额,金额_净值,交易对方,商品说明,来源,必要性打标,备注
+
+【字段规则】
+- 交易时间：保留原始格式，如 2026-02-17 10:13:53
+- 精细分类（支出类）：餐饮美食 / 交通出行 / 日常购物 / 住房物业 / 娱乐消费 / 医疗健康 / 人情往来 / 其他支出
+- 精细分类（收入类）：工资薪资 / 兼职收入 / 其他收入
+- 收支：只填「收入」「支出」或「不计收支」（转账、充值等填「不计收支」）
+- 金额：绝对值，正数，不含 ¥ 符号
+- 金额_净值：支出填正数，收入填负数（如收入 5000 元填 -5000）
+- 交易对方：原始交易对方名称
+- 商品说明：商品名称或备注
+- 来源：微信 或 支付宝
+- 必要性打标：刚性支出 / 弹性支出 / 可选支出 / 不计收支
+- 备注：留空即可
+
+【过滤规则】跳过状态为「交易关闭」「已退款」「对方已退还」的记录
+
+请只输出 CSV 内容，不要任何说明文字，不要代码块。`;
 
 export default function App() {
   const [rawData, setRawData] = useState<BillRecord[]>([]);
@@ -34,17 +56,15 @@ export default function App() {
   const [aiCorrectRecords, setAiCorrectRecords] = useState<BillRecord[] | null>(null);
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [showAIImport, setShowAIImport] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
-  // Load persisted data, documents & theme on mount
   useEffect(() => {
     (async () => {
       try {
         const [data, docs, savedTheme] = await Promise.all([loadRawData(), loadDocuments(), loadTheme()]);
         setRawData(data);
         setDocuments(docs);
-        
-        // Auto-select latest year and month if data exists
+
         if (data.length > 0) {
           const latestRecord = [...data].sort((a, b) => b.dateStr.localeCompare(a.dateStr))[0];
           if (latestRecord) {
@@ -52,12 +72,11 @@ export default function App() {
             setSelectedMonth(latestRecord.month);
           }
         }
-        
+
         setTheme(savedTheme);
         applyThemeToDom(savedTheme);
         setLoading(false);
 
-        // 首次加载后如有数据则备份（若今天尚未备份）
         if (data.length > 0) {
           try {
             const existing = await listBackups();
@@ -71,13 +90,12 @@ export default function App() {
             /* ignore */
           }
         }
-      } catch (err) {
-        setLoading(false); // maybe still set loading false
+      } catch {
+        setLoading(false);
       }
     })();
   }, []);
 
-  // 定期备份：每天一次
   const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
   useEffect(() => {
     if (rawData.length === 0) return;
@@ -107,13 +125,12 @@ export default function App() {
       const existingHashes = new Set(prev.map((r) => r.hash));
       const toAdd = newRecords.filter((r) => !existingHashes.has(r.hash));
       if (toAdd.length === 0) return prev;
-      
+
       const merged = [...prev, ...toAdd];
-      
-      // 异步保存数据，避免阻塞 UI 渲染
+
       setTimeout(() => {
         saveRawData(merged).catch(console.error);
-        
+
         let latestRecord = merged[0];
         for (let i = 1; i < merged.length; i++) {
           if (merged[i].dateStr > latestRecord.dateStr) {
@@ -125,10 +142,10 @@ export default function App() {
           setSelectedMonth(latestRecord.month);
         }
       }, 0);
-      
+
       return merged;
     });
-    
+
     if (documentMeta) {
       setDocuments((prev) => {
         const next = [...prev, documentMeta];
@@ -236,10 +253,20 @@ export default function App() {
     });
   }, []);
 
+  const handleCopyPrompt = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(AI_PROMPT);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const yearOptions = toYearOptions(rawData);
   const recordsForCategoryOptions = getFilteredRecords(rawData, selectedYear, selectedMonth);
   const categoryOptions = toCategoryOptions(recordsForCategoryOptions);
-  
+
   const filteredRecords = getFilteredRecords(rawData, selectedYear, selectedMonth, selectedCategory);
   const hasData = rawData.length > 0;
 
@@ -260,12 +287,11 @@ export default function App() {
     <div className="min-h-screen bg-zinc-50 px-4 py-6 dark:bg-slate-950 md:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex items-start justify-between gap-4">
-          <Header 
-            theme={theme} 
-            onToggleTheme={handleToggleTheme} 
-            onImport={handleImport} 
+          <Header
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            onImport={handleImport}
             onAddRecordClick={() => setIsRecordModalOpen(true)}
-            onAIImportClick={() => setShowAIImport(true)}
           />
           <button
             type="button"
@@ -309,7 +335,7 @@ export default function App() {
                 清空数据
               </button>
             </div>
-            
+
             {currentTab === "dashboard" && (
               <div className="animate-fade-in">
                 <Dashboard
@@ -375,58 +401,115 @@ export default function App() {
         )}
 
         {!hasData && (
-          <div className="animate-fade-in flex flex-col items-center justify-center rounded-3xl bg-white px-6 py-16 shadow-md ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:px-16">
-            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
-              <Sparkles size={40} />
-            </div>
-            <h2 className="mb-4 text-3xl font-bold text-slate-800 dark:text-white">欢迎使用 Bill App</h2>
-            <div className="mb-10 max-w-2xl text-center">
-              <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                记账是为了更好地记录生活，<strong className="font-semibold text-violet-600 dark:text-violet-400">无需时时紧绷</strong>。
-              </p>
-              <p className="mt-2 text-slate-500 dark:text-slate-400">
-                不用每天为了几块钱强迫自己记账。你只需要养成<strong className="font-medium text-slate-700 dark:text-slate-200">定期（比如月末）导出账单并上传</strong>的习惯，剩下的繁琐整理、分类和复盘，全部交给 AI 帮你完成。
+          <div className="animate-fade-in">
+            {/* 欢迎标题 */}
+            <div className="mb-8 text-center">
+              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                <PieChart size={32} />
+              </div>
+              <h2 className="mb-2 text-3xl font-bold text-slate-800 dark:text-white">欢迎使用 Bill App</h2>
+              <p className="text-slate-500 dark:text-slate-400">
+                按照下面三步，将你的微信/支付宝账单导入系统，开始分析你的财务状况。
               </p>
             </div>
 
-            <div className="mb-12 grid w-full max-w-4xl gap-6 sm:grid-cols-3">
-              <div className="relative flex flex-col items-center rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center dark:border-slate-800 dark:bg-slate-800/50">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
-                  <Download size={24} />
+            {/* 三步引导卡片 */}
+            <div className="mb-8 grid gap-4 md:grid-cols-3">
+              {/* Step 1 */}
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                    1
+                  </div>
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100">导出原始账单</h3>
                 </div>
-                <h3 className="mb-2 font-bold text-slate-800 dark:text-slate-200">1. 导出原始账单</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">去微信或支付宝的账单页面，申请导出你的月度或年度账单文件。</p>
+                <div className="flex-1 space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="mb-1 font-medium text-slate-700 dark:text-slate-300">微信账单</p>
+                    <p className="leading-relaxed">微信 → 我 → 服务 → 钱包 → 账单 → 右上角「…」→ 账单下载</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="mb-1 font-medium text-slate-700 dark:text-slate-300">支付宝账单</p>
+                    <p className="leading-relaxed">支付宝 → 首页「账单」→ 右上角「…」→ 开具交易流水证明</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                  <Download size={13} />
+                  下载后得到 .csv 或 .xlsx 文件
+                </div>
               </div>
-              <div className="relative flex flex-col items-center rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center dark:border-slate-800 dark:bg-slate-800/50">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
-                  <Sparkles size={24} />
+
+              {/* Step 2 */}
+              <div className="flex flex-col rounded-2xl border border-violet-200 bg-white p-6 shadow-sm ring-1 ring-violet-100 dark:border-violet-800/50 dark:bg-slate-900 dark:ring-violet-900/30">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-bold text-white">
+                    2
+                  </div>
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100">用 AI 清洗数据</h3>
                 </div>
-                <h3 className="mb-2 font-bold text-slate-800 dark:text-slate-200">2. AI 智能清洗</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">把文件扔进来，AI 会自动帮你分类、去重、剔除退款和无用流水。</p>
+                <div className="flex-1 space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                  <p>打开你常用的 AI 助手（如 <a href="https://kimi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">Kimi</a>、<a href="https://tongyi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">通义千问</a>、<a href="https://chatgpt.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">ChatGPT</a> 等），上传你的账单文件，然后发送下面这段提示词：</p>
+                  <div className="relative rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                    <p className="line-clamp-3 font-mono text-xs leading-relaxed text-slate-500 dark:text-slate-500">
+                      我有一份微信/支付宝账单文件，请帮我清洗并转换成标准化的 CSV 格式…
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleCopyPrompt}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-500"
+                    >
+                      {promptCopied ? <Check size={12} /> : <Copy size={12} />}
+                      {promptCopied ? "已复制" : "复制完整提示词"}
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                  <MessageSquareText size={13} />
+                  AI 会输出标准格式的 CSV 内容
+                </div>
               </div>
-              <div className="relative flex flex-col items-center rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center dark:border-slate-800 dark:bg-slate-800/50">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  <PieChart size={24} />
+
+              {/* Step 3 */}
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    3
+                  </div>
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100">导入 CSV 并分析</h3>
                 </div>
-                <h3 className="mb-2 font-bold text-slate-800 dark:text-slate-200">3. 洞见与复盘</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">通过多维看板和 AI 财务洞见，轻松掌握资金去向，复盘生活轨迹。</p>
+                <div className="flex-1 space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                  <p>将 AI 生成的 CSV 内容保存为 <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs dark:bg-slate-800">.csv</code> 文件，然后点击右上角的「导入 CSV」按钮上传。</p>
+                  <p>导入后即可查看：</p>
+                  <ul className="space-y-1">
+                    <li className="flex items-center gap-2"><Sparkles size={13} className="shrink-0 text-violet-500" /> 收支数据看板与趋势图</li>
+                    <li className="flex items-center gap-2"><Sparkles size={13} className="shrink-0 text-violet-500" /> AI 财务洞见与改进建议</li>
+                  </ul>
+                </div>
+                <div className="mt-4">
+                  <ImportButton onImport={handleImport} />
+                </div>
               </div>
             </div>
 
-            <button
-              onClick={() => setShowAIImport(true)}
-              className="group flex items-center gap-3 rounded-2xl bg-violet-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-violet-200 transition-all hover:-translate-y-1 hover:bg-violet-700 hover:shadow-xl dark:shadow-none"
-            >
-              <Sparkles size={24} className="transition-transform group-hover:rotate-12" />
-              开始第一次 AI 导入
-              <ArrowRight size={20} className="ml-1 transition-transform group-hover:translate-x-1" />
-            </button>
-            <p className="mt-6 text-sm text-slate-400">
-              或者你也可以 <button onClick={() => setIsRecordModalOpen(true)} className="text-violet-500 hover:underline">手动记一笔</button>
-            </p>
+            {/* 分割线 + 次要操作 */}
+            <div className="mb-8 flex items-center gap-4">
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+              <span className="text-xs text-slate-400">或者</span>
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+            </div>
+            <div className="mb-10 flex justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setIsRecordModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-700 dark:hover:text-violet-400"
+              >
+                手动记录一笔账
+                <ArrowRight size={14} />
+              </button>
+            </div>
 
-            {/* 隐私保障说明 */}
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-8 py-4 dark:border-slate-800 dark:bg-slate-800/40">
+            {/* 隐私说明 */}
+            <div className="flex flex-wrap items-center justify-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-8 py-4 dark:border-slate-800 dark:bg-slate-800/40">
               <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <HardDrive size={15} className="shrink-0 text-emerald-500" />
                 数据仅存储在<strong className="font-semibold text-slate-700 dark:text-slate-200">你的浏览器本地</strong>
@@ -444,11 +527,11 @@ export default function App() {
             </div>
           </div>
         )}
-        
+
         {isRecordModalOpen && (
-          <RecordModal 
-            onClose={() => setIsRecordModalOpen(false)} 
-            onSave={handleAddRecord} 
+          <RecordModal
+            onClose={() => setIsRecordModalOpen(false)}
+            onSave={handleAddRecord}
             existingCategories={allCategories}
           />
         )}
@@ -482,18 +565,56 @@ export default function App() {
         )}
 
         {isHelpOpen && <HelpModal onClose={() => setIsHelpOpen(false)} />}
-
-        {showAIImport && (
-          <AIImportPage
-            apiKey={import.meta.env.VITE_GEMINI_API_KEY || ""}
-            onImport={(records, docMeta) => {
-              handleImport(records, docMeta);
-            }}
-            onClose={() => setShowAIImport(false)}
-          />
-        )}
       </div>
     </div>
+  );
+}
+
+function ImportButton({ onImport }: { onImport: (records: BillRecord[], documentMeta?: DocumentMeta) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function safeRandomUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const csvText = await file.text();
+    const parsed = parseCsvText(csvText);
+    const headers = parsed.meta.fields ?? [];
+    const validation = validateCsvHeaders(headers);
+    if (!validation.valid) {
+      alert(`CSV 缺少字段: ${validation.missing.join("、")}`);
+      return;
+    }
+    const documentId = safeRandomUUID();
+    const records = rowsToRecords(parsed.data, documentId);
+    const documentMeta: DocumentMeta = {
+      id: documentId,
+      name: file.name,
+      importDate: new Date().toISOString().slice(0, 10),
+      recordCount: records.length,
+    };
+    onImport(records, documentMeta);
+    event.target.value = "";
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+      >
+        <Upload size={15} />
+        导入 CSV
+      </button>
+      <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+    </>
   );
 }
 
@@ -512,4 +633,3 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
     </button>
   );
 }
-
