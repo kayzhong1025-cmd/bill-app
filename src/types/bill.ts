@@ -32,6 +32,8 @@ export interface CsvRow {
   日期?: string;
   时间?: string;
   精细分类?: string;
+  分类?: string;
+  交易分类?: string;
   审计分类?: string;
   收支类型?: string;
   收支?: string;
