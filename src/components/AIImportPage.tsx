@@ -127,11 +127,7 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
         if (audit.hasQuestions && audit.questions.length > 0) {
           setQuestions(audit.questions);
           setAnswers(Object.fromEntries(audit.questions.map((q) => [q.id, ""])));
-          // 先生成概览数据存起来，但不跳转页面
-          generateDataSummary(rawText, apiKey, abortControllerRef.current.signal)
-            .then(res => setSummary(res))
-            .catch(console.error);
-            
+          // 不再提前生成概览，因为概览需要依赖用户的回答
           setStep(3); // 进入问题确认页
         } else {
           await runSummary(); // 没有问题，直接跑概览并进入概览页
@@ -155,16 +151,21 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
 
     try {
       const isStandardCsv = rawText.includes('金额_净值') && rawText.includes('精细分类');
+      
+      const filledAnswers = Object.fromEntries(
+        Object.entries(answers).filter(([, v]) => v.trim() !== "")
+      );
+
       if (isStandardCsv && (!apiKey || apiKey.length < 10)) {
         // 如果是标准 CSV 且没有 API key，直接走 fallback 逻辑，不调 API
         const { generateDataSummary: fallbackGen } = await import('../lib/aiImport');
-        const result = await fallbackGen(rawText, 'dummy_key', abortControllerRef.current.signal);
+        const result = await fallbackGen(rawText, 'dummy_key', abortControllerRef.current.signal, filledAnswers, globalInstruction);
         setSummary(result);
         setStep(5);
         return;
       }
       
-      const result = await generateDataSummary(rawText, apiKey, abortControllerRef.current.signal);
+      const result = await generateDataSummary(rawText, apiKey, abortControllerRef.current.signal, filledAnswers, globalInstruction);
       setSummary(result);
       setStep(5);
     } catch (err: unknown) {
@@ -173,8 +174,13 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
       if (isStandardCsv) {
         // 强制使用 fallback 构建概览
         const { generateDataSummary: fallbackGen } = await import('../lib/aiImport');
+        
+        const filledAnswers = Object.fromEntries(
+          Object.entries(answers).filter(([, v]) => v.trim() !== "")
+        );
+        
         // 传一个假的 key 让它失败然后走 fallback
-        const result = await fallbackGen(rawText, 'dummy_key_to_force_fallback', abortControllerRef.current.signal);
+        const result = await fallbackGen(rawText, 'dummy_key_to_force_fallback', abortControllerRef.current.signal, filledAnswers, globalInstruction);
         setSummary(result);
         setStep(5);
         return;
@@ -191,12 +197,8 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
   };
 
     const handleConfirmQuestions = () => {
-    // 如果概览已经生成好了，直接跳过去；否则显示 loading
-    if (summary) {
-      setStep(5);
-    } else {
-      runSummary();
-    }
+    // 因为现在概览需要依赖用户的回答，所以我们每次都在这里重新生成概览
+    runSummary();
   };
 
   const handleRegenerateSummary = () => {
@@ -657,8 +659,7 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
                     </button>
                     <button
                       onClick={() => {
-                        if (summary) setStep(5);
-                        else runSummary();
+                        runSummary();
                       }}
                       className="rounded-xl border border-slate-300 px-6 py-2.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-white dark:hover:bg-slate-800"
                     >
