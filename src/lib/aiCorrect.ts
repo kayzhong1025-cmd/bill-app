@@ -1,6 +1,6 @@
 import type { BillRecord } from "../types/bill";
 
-const ALIYUN_MODEL = "qwen-max-latest";
+const ALIYUN_MODEL = "qwen3.5-flash";
 const ALIYUN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 /** 根据用户描述修正账单记录 */
