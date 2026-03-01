@@ -45,13 +45,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
 
   // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
   if (typeText && !typeText.includes("收入") && !typeText.includes("支出") && !typeText.includes("不计收支")) {
-    // 如果没有明确的收支类型，但有金额，默认按支出处理（兜底）
-    const raw = row["金额"] || row["金额(元)"] || "0";
-    const amount = Math.abs(cleanAmount(raw));
-    if (Number.isFinite(amount) && amount > 0) {
-      return { amount, type: "expense" };
-    }
-    return null;
+    return null; // 如果明确不是这三种类型，直接忽略，不再兜底为支出
   }
 
   if (typeText && typeText.includes("不计收支")) {
