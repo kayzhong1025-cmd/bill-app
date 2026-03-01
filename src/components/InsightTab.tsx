@@ -150,7 +150,7 @@ export default function InsightTab({ records, selectedYear, selectedMonth }: Ins
 ${context}`;
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+      const url = `/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

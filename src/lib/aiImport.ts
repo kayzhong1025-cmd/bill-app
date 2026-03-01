@@ -336,7 +336,7 @@ export async function generateDataSummary(
   userAnswers?: Record<string, string>,
   globalInstruction?: string
 ): Promise<DataSummary> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+  const url = `/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
     apiKey
   )}`;
   const sampleText = rawText.split("\n").slice(0, 300).join("\n");
@@ -436,7 +436,7 @@ export async function auditForQuestions(
   apiKey: string,
   signal?: AbortSignal
 ): Promise<AuditResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+  const url = `/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
     apiKey
   )}`;
 
@@ -518,7 +518,7 @@ export async function callGeminiClean(
   userAnswers?: Record<string, string>,
   globalInstruction?: string
 ): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+  const url = `/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
     apiKey
   )}`;
 

@@ -9,7 +9,7 @@ export async function correctRecordsByInstruction(
   apiKey: string,
   signal?: AbortSignal
 ): Promise<BillRecord[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+  const url = `/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
     apiKey
   )}`;
 
