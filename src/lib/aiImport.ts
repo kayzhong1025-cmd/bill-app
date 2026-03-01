@@ -487,8 +487,8 @@ export async function auditForQuestions(
   return { hasQuestions: false, questions: [] };
 }
 
-/** 每批行数，过大会导致 Gemini 输出被 MAX_TOKENS 截断，100 是一个速度与稳定性的良好平衡点 */
-const DEFAULT_BATCH_LINES = 100;
+/** 每批行数，过大会导致 AI 输出被截断，150 是一个速度与稳定性的良好平衡点 */
+const DEFAULT_BATCH_LINES = 150;
 
 /** 每批预计耗时（秒），用于进度提示 */
 export const ESTIMATED_SEC_PER_BATCH = 15;
@@ -661,8 +661,8 @@ export async function processAIImport(
     return records;
   };
 
-  // 并发处理：每次同时处理 3 个批次，避免触发 Gemini 免费版 15 RPM 的频率限制
-  const CONCURRENCY = 3;
+  // 并发处理：每次同时处理 5 个批次，阿里云的并发能力很强
+  const CONCURRENCY = 5;
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
     const chunk = batches.slice(i, i + CONCURRENCY);
     const chunkResults = await Promise.all(
