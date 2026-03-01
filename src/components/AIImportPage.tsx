@@ -871,10 +871,12 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
                                 className={`rounded-md px-2 py-1 text-xs ${
                                   r.type === "expense"
                                     ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                    : r.type === "transfer"
+                                    ? "bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300"
                                     : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                 }`}
                               >
-                                {r.type === "expense" ? "支出" : "收入"}
+                                {r.type === "expense" ? "支出" : r.type === "transfer" ? "不计收支" : "收入"}
                               </span>
                             </td>
                             <td className="p-3 text-right font-medium whitespace-nowrap">
