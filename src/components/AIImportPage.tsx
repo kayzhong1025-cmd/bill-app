@@ -138,7 +138,7 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
         setStep(1);
       } else {
         reportApiError("预检", err);
-        setError("预检遇到问题，请重试");
+        setError(err instanceof Error ? err.message : "预检遇到问题，请重试");
         setStep(1);
       }
     }
