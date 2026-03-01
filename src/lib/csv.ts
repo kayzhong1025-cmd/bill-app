@@ -29,12 +29,19 @@ const cleanAmount = (val: string) => Number.parseFloat(val.replace(/[¥,]/g, '')
 
 function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "expense" | "transfer" } | null {
   const typeText = (row["收支类型"] ?? row["收支"] ?? row["交易类型"] ?? row["类型"])?.trim();
+  const categoryText = (row["精细分类"] ?? row["分类"] ?? row["交易分类"] ?? "")?.trim();
   
+  // 如果分类包含“理财”、“金融”、“基金”、“股票”、“转账”、“充值”、“提现”，强制标记为“不计收支” (transfer)
+  const isFinancialTransfer = /理财|金融|基金|股票|转账|充值|提现|还款|借款|红包|零钱/.test(categoryText);
+
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
   const netRaw = row["金额_净值"];
   if (netRaw !== undefined && netRaw.trim() !== "") {
     const netValue = cleanAmount(netRaw);
     if (!Number.isNaN(netValue)) {
+      if (isFinancialTransfer || (typeText && typeText.includes("不计收支"))) {
+        return { amount: Math.abs(netValue), type: "transfer" };
+      }
       // 净值 > 0 视为支出，净值 < 0 视为收入
       return {
         amount: Math.abs(netValue),
@@ -48,7 +55,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
     return null; // 如果明确不是这三种类型，直接忽略，不再兜底为支出
   }
 
-  if (typeText && typeText.includes("不计收支")) {
+  if (isFinancialTransfer || (typeText && typeText.includes("不计收支"))) {
     const raw = row["金额"] || row["金额_净值"] || row["金额(元)"] || "0";
     const amount = Math.abs(cleanAmount(raw));
     if (!Number.isFinite(amount)) return null;
