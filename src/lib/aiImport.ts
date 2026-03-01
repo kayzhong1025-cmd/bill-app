@@ -247,7 +247,7 @@ function extractExactStats(rawText: string) {
           isExp = true;
           expenses.push({ amount, description: desc, date, type: 'expense' });
         } else if (typeStr.includes('收入')) {
-          if (category === "年度总收入" || category === "兼职收入") {
+          if (category === "年度总收入" || category === "兼职收入" || category === "其他收入") {
             csvTotalIncome += amount;
             isInc = true;
             incomes.push({ amount, description: desc, date, type: 'income' });
@@ -315,7 +315,7 @@ function extractExactStats(rawText: string) {
           if (type === '支出') {
             totalExpense += amount;
           } else if (type === '收入') {
-            if (category === "年度总收入" || category === "兼职收入") {
+            if (category === "年度总收入" || category === "兼职收入" || category === "其他收入") {
               totalIncome += amount;
             } else {
               totalExpense -= amount;
