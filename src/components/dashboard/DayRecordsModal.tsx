@@ -84,7 +84,7 @@ export default function DayRecordsModal({ dateStr, records, onClose, onEditRecor
                           {r.description}
                         </td>
                         <td className={`whitespace-nowrap p-3 text-right font-medium ${color}`}>
-                          {isExp ? "-" : isTransfer ? "" : "+"}¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+                          {isExp ? (r.amount < 0 ? "+" : "-") : isTransfer ? "" : "+"}¥{Math.abs(r.amount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="p-3">
                           <button

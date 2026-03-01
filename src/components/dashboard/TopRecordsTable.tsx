@@ -61,7 +61,7 @@ export default function TopRecordsTable({ records, title, onEditRecord, onDelete
                     </span>
                   </td>
                   <td className="py-2 text-right font-semibold text-slate-900 dark:text-white">
-                    ¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+                    {r.type === "expense" ? (r.amount < 0 ? "+" : "") : r.type === "transfer" ? "" : "+"}¥{Math.abs(r.amount).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                   </td>
                   <td className="py-2 pr-2">
                     <div className="flex items-center gap-1">

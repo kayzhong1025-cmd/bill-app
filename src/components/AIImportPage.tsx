@@ -880,7 +880,7 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
                               </span>
                             </td>
                             <td className="p-3 text-right font-medium whitespace-nowrap">
-                              ¥{Number.isFinite(r.amount) ? r.amount.toFixed(2) : "—"}
+                              {r.type === "expense" ? (r.amount < 0 ? "+" : "-") : r.type === "transfer" ? "" : "+"}¥{Number.isFinite(r.amount) ? Math.abs(r.amount).toFixed(2) : "—"}
                             </td>
                             <td className="p-3 truncate max-w-[120px]" title={r.counterparty}>{r.counterparty}</td>
                             <td className="p-3 truncate max-w-[180px]" title={r.description}>{r.description}</td>

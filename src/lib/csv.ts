@@ -10,7 +10,7 @@ const ALT_MAP: Record<string, string[]> = {
 
 function normalizeDate(input?: string) {
   if (!input) return null;
-  const head = input.split(" ")[0].replaceAll("年", "-").replaceAll("月", "-").replaceAll("日", "");
+  const head = input.split(" ")[0].replaceAll("年", "-").replaceAll("月", "-").replaceAll("日", "").replaceAll("/", "-");
   const parts = head.split("-").filter(Boolean);
   if (parts.length < 3) return null;
   const [year, month, day] = parts;
@@ -22,6 +22,8 @@ function normalizeDate(input?: string) {
   };
 }
 
+const cleanAmount = (val: string) => Number.parseFloat(val.replace(/[¥,]/g, ''));
+
 function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "expense" | "transfer" } | null {
   const typeText = (row["收支类型"] ?? row["收支"])?.trim();
   // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
@@ -31,7 +33,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
 
   if (typeText === "不计收支") {
     const raw = row["金额"] || row["金额_净值"] || "0";
-    const amount = Math.abs(Number.parseFloat(raw));
+    const amount = Math.abs(cleanAmount(raw));
     if (!Number.isFinite(amount) || amount === 0) return null;
     return { amount, type: "transfer" };
   }
@@ -39,7 +41,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
   const netRaw = row["金额_净值"];
   if (netRaw !== undefined && netRaw.trim() !== "") {
-    const netValue = Number.parseFloat(netRaw);
+    const netValue = cleanAmount(netRaw);
     if (!Number.isNaN(netValue) && netValue !== 0) {
       // 净值 > 0 视为支出，净值 < 0 视为收入
       return {
@@ -51,7 +53,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
 
   // 退级使用 "金额" 和 "收支"
   const raw = row["金额"] || "0";
-  const amount = Math.abs(Number.parseFloat(raw));
+  const amount = Math.abs(cleanAmount(raw));
   if (!Number.isFinite(amount) || amount === 0) return null;
 
   if (typeText === "收入") return { amount, type: "income" };

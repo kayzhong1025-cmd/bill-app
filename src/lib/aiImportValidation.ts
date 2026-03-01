@@ -175,7 +175,7 @@ export function isValidBillRecord(r: unknown): r is BillRecord {
     /^\d{4}-\d{2}-\d{2}$/.test(o.dateStr) &&
     typeof o.amount === "number" &&
     Number.isFinite(o.amount) &&
-    o.amount > 0
+    o.amount !== 0
   );
 }
 
