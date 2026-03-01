@@ -615,7 +615,10 @@ export async function processAIImport(
         const parsed = parseCsvText(csvText);
         if (parsed.data && parsed.data.length > 0) {
           onProgress?.(1, 1);
-          const records = rowsToRecords(parsed.data, documentId).filter(isValidBillRecord);
+          const rawRecords = rowsToRecords(parsed.data, documentId);
+    console.log(`[Debug] 批次 ${index + 1} 转换后未过滤记录:`, rawRecords);
+    const records = rawRecords.filter(isValidBillRecord);
+    console.log(`[Debug] 批次 ${index + 1} 过滤后有效记录:`, records);
           const dedup = new Map<string, BillRecord>();
           for (const record of records) {
             dedup.set(record.hash, record);
@@ -657,11 +660,16 @@ export async function processAIImport(
       parsed = { data: [] };
     }
     
+    console.log(`[Debug] 批次 ${index + 1} AI 返回原始文本:`, csvText);
+    console.log(`[Debug] 批次 ${index + 1} 解析后数据:`, parsed.data);
     const csvCheck = validateParsedCsv(parsed);
     if (!csvCheck.valid) {
       console.warn(`批次 ${index + 1}/${batches.length} 表头校验失败: ${csvCheck.error}`);
     }
-    const records = rowsToRecords(parsed.data, documentId).filter(isValidBillRecord);
+    const rawRecords = rowsToRecords(parsed.data, documentId);
+    console.log(`[Debug] 批次 ${index + 1} 转换后未过滤记录:`, rawRecords);
+    const records = rawRecords.filter(isValidBillRecord);
+    console.log(`[Debug] 批次 ${index + 1} 过滤后有效记录:`, records);
     
     completedBatches++;
     onProgress?.(completedBatches, batches.length);
