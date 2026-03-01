@@ -41,33 +41,30 @@ export function validateApiKey(apiKey: string): InputValidation {
   return { valid: true };
 }
 
-/** 校验 Gemini API 响应是否有效 */
-export function validateGeminiResponse(data: unknown): { valid: boolean; text?: string; error?: string } {
+/** 校验 API 响应是否有效 (OpenAI 兼容格式) */
+export function validateAIResponse(data: unknown): { valid: boolean; text?: string; error?: string; finishReason?: string } {
   if (!data || typeof data !== "object") {
     return { valid: false, error: "API 返回格式异常" };
   }
   const obj = data as Record<string, unknown>;
-  const promptFeedback = obj.promptFeedback as Record<string, unknown> | undefined;
-  const candidates = obj.candidates;
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    if (promptFeedback?.blockReason) {
-      return { valid: false, error: "内容被安全策略过滤，请检查输入数据" };
-    }
+  const choices = obj.choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
     return { valid: false, error: "AI 未返回有效内容，请重试" };
   }
-  const candidate = candidates[0];
-  const finishReason = candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>).finishReason : undefined;
-  if (finishReason === "SAFETY" || finishReason === "RECITATION") {
-    return { valid: false, error: "内容被安全策略过滤，请检查输入数据" };
+  const choice = choices[0];
+  if (!choice || typeof choice !== "object") {
+    return { valid: false, error: "AI 未返回有效内容，请重试" };
   }
-  const content = candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>).content : undefined;
-  const parts = content && typeof content === "object" ? (content as Record<string, unknown>).parts : undefined;
-  const firstPart = Array.isArray(parts) ? parts[0] : undefined;
-  const text = firstPart && typeof firstPart === "object" ? (firstPart as Record<string, unknown>).text : undefined;
+  const finishReason = (choice as Record<string, unknown>).finish_reason as string;
+  if (finishReason === "content_filter") {
+    return { valid: false, error: "内容被安全策略过滤，请检查输入数据", finishReason };
+  }
+  const message = (choice as Record<string, unknown>).message;
+  const text = message && typeof message === "object" ? (message as Record<string, unknown>).content : undefined;
   if (text == null || (typeof text === "string" && text.trim().length === 0)) {
-    return { valid: false, error: "AI 未返回有效内容，请重试" };
+    return { valid: false, error: "AI 未返回有效内容，请重试", finishReason };
   }
-  return { valid: true, text: typeof text === "string" ? text : String(text) };
+  return { valid: true, text: typeof text === "string" ? text : String(text), finishReason };
 }
 
 /** 校验并清洗 DataSummary */
@@ -150,8 +147,8 @@ export function sanitizeAuditQuestions(questions: unknown): AuditQuestion[] {
     .filter(Boolean) as AuditQuestion[];
 }
 
-/** 校验 Gemini 清洗输出的 CSV 是否可解析 */
-export function validateGeminiCsvOutput(csvText: string): { valid: boolean; error?: string } {
+/** 校验 AI 清洗输出的 CSV 是否可解析 */
+export function validateAICsvOutput(csvText: string): { valid: boolean; error?: string } {
   const trimmed = csvText.trim();
   if (!trimmed) {
     return { valid: false, error: "本批次 AI 未返回有效内容，可能被截断" };

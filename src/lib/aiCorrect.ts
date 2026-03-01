@@ -1,6 +1,7 @@
 import type { BillRecord } from "../types/bill";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const ALIYUN_MODEL = "qwen-plus";
+const ALIYUN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 /** 根据用户描述修正账单记录 */
 export async function correctRecordsByInstruction(
@@ -9,10 +10,6 @@ export async function correctRecordsByInstruction(
   apiKey: string,
   signal?: AbortSignal
 ): Promise<BillRecord[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
-
   const recordsJson = JSON.stringify(
     records.map((r) => ({
       hash: r.hash,
@@ -49,16 +46,16 @@ ${recordsJson}
 5. amount 为非零数字（支出为正，退款为负）
 6. 若某条不需修改，保持原样`;
 
-  const res = await fetch(url, {
+  const res = await fetch(ALIYUN_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: 65536,
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
+      model: ALIYUN_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1,
     }),
     signal,
   });
@@ -68,8 +65,8 @@ ${recordsJson}
     throw new Error(errBody || `API 错误: ${res.status}`);
   }
 
-  const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const text = data.choices?.[0]?.message?.content ?? "";
   const cleaned = text.replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
   const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {

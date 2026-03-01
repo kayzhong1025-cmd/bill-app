@@ -3,8 +3,8 @@ import Papa from "papaparse";
 import type { BillRecord } from "../types/bill";
 import { type ImportRules, buildCleaningPrompt } from "./importRules";
 import {
-  validateGeminiResponse,
-  validateGeminiCsvOutput,
+  validateAIResponse,
+  validateAICsvOutput,
   validateParsedCsv,
   isValidBillRecord,
   sanitizeDataSummary,
@@ -12,7 +12,8 @@ import {
 } from "./aiImportValidation";
 import { reportSummaryParseError } from "./aiImportErrorReporter";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const ALIYUN_MODEL = "qwen-plus";
+const ALIYUN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 export interface AuditQuestion {
   id: string;
@@ -336,9 +337,6 @@ export async function generateDataSummary(
   userAnswers?: Record<string, string>,
   globalInstruction?: string
 ): Promise<DataSummary> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
   const sampleText = rawText.split("\n").slice(0, 300).join("\n");
   
   // 提取精确统计数据
@@ -363,18 +361,19 @@ export async function generateDataSummary(
   const hasCustomInstructions = (userAnswers && Object.keys(userAnswers).length > 0) || (globalInstruction && globalInstruction.trim().length > 0);
 
   const doRequest = async (): Promise<string> => {
-    const res = await fetch(url, {
+    const res = await fetch(ALIYUN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        contents: [
-          { parts: [{ text: promptWithStats }, { text: "原始数据：\n" + sampleText }] },
+        model: ALIYUN_MODEL,
+        messages: [
+          { role: "system", content: promptWithStats },
+          { role: "user", content: "原始数据：\n" + sampleText }
         ],
-        generationConfig: {
-          maxOutputTokens: 16384,
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
+        temperature: 0.1,
       }),
       signal,
     });
@@ -383,7 +382,7 @@ export async function generateDataSummary(
       throw new Error(errBody || `API 错误: ${res.status}`);
     }
     const data = await res.json();
-    const respCheck = validateGeminiResponse(data);
+    const respCheck = validateAIResponse(data);
     if (!respCheck.valid) {
       throw new Error(respCheck.error ?? "API 返回异常");
     }
@@ -436,29 +435,22 @@ export async function auditForQuestions(
   apiKey: string,
   signal?: AbortSignal
 ): Promise<AuditResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
-
   // 预检使用全部数据，确保每条记录都被检查
   const fullText = rawText.trim();
 
-  const res = await fetch(url, {
+  const res = await fetch(ALIYUN_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: AUDIT_PROMPT },
-            { text: "原始数据（请逐条检查全部记录）：\n" + fullText },
-          ],
-        },
+      model: ALIYUN_MODEL,
+      messages: [
+        { role: "system", content: AUDIT_PROMPT },
+        { role: "user", content: "原始数据（请逐条检查全部记录）：\n" + fullText }
       ],
-      generationConfig: {
-        maxOutputTokens: 8192,
-        temperature: 0.1,
-      },
+      temperature: 0.1,
     }),
     signal,
   });
@@ -469,7 +461,7 @@ export async function auditForQuestions(
   }
 
   const data = await res.json();
-  const respCheck = validateGeminiResponse(data);
+  const respCheck = validateAIResponse(data);
   if (!respCheck.valid) {
     return { hasQuestions: false, questions: [] };
   }
@@ -510,7 +502,7 @@ export function splitRawText(text: string, batchLines = DEFAULT_BATCH_LINES): st
   return batches;
 }
 
-export async function callGeminiClean(
+export async function callAIClean(
   batchText: string,
   apiKey: string,
   rules: ImportRules,
@@ -518,10 +510,6 @@ export async function callGeminiClean(
   userAnswers?: Record<string, string>,
   globalInstruction?: string
 ): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
-
   let systemPrompt = buildCleaningPrompt(rules);
   if (userAnswers && Object.keys(userAnswers).length > 0) {
     const answersText = Object.entries(userAnswers)
@@ -534,22 +522,19 @@ export async function callGeminiClean(
     systemPrompt += `\n\n【补充清洗口径】用户补充了以下全局清洗口径，请严格遵守并在数据清洗时应用：\n${globalInstruction}`;
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(ALIYUN_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: systemPrompt },
-            { text: "以下是原始账单数据：\n" + batchText },
-          ],
-        },
+      model: ALIYUN_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "以下是原始账单数据：\n" + batchText }
       ],
-      generationConfig: {
-        maxOutputTokens: 32768,
-        temperature: 0.1,
-      },
+      temperature: 0.1,
     }),
     signal,
   });
@@ -559,22 +544,21 @@ export async function callGeminiClean(
     throw new Error(errBody || `API 错误: ${res.status}`);
   }
 
-  const data = (await res.json()) as { candidates?: Array<{ finishReason?: string }> };
-  const respCheck = validateGeminiResponse(data);
+  const data = await res.json();
+  const respCheck = validateAIResponse(data);
   if (!respCheck.valid) {
     console.warn(`[Bill-App AI导入] 清洗批次异常: ${respCheck.error}，该批跳过`);
     return "交易时间,精细分类,收支,金额,金额_净值,交易对方,商品说明,来源,必要性打标,备注\n";
   }
   let text = respCheck.text!;
-  const finishReason = data.candidates?.[0]?.finishReason;
-  if (finishReason === "MAX_TOKENS") {
-    console.warn("Gemini 输出被 token 限制截断，本批次可能不完整");
+  if (respCheck.finishReason === "length") {
+    console.warn("AI 输出被长度限制截断，本批次可能不完整");
   }
 
   // Clean markdown code blocks if any
   text = text.replace(/^\`\`\`(?:csv)?\s*/i, "").replace(/\s*\`\`\`$/, "").trim();
 
-  const csvCheck = validateGeminiCsvOutput(text);
+  const csvCheck = validateAICsvOutput(text);
   if (!csvCheck.valid) {
     console.warn(`本批次 AI 输出异常: ${csvCheck.error}，该批将跳过`);
     return "交易时间,精细分类,收支,金额,金额_净值,交易对方,商品说明,来源,必要性打标,备注\n";
@@ -642,7 +626,7 @@ export async function processAIImport(
 
     let csvText: string;
     try {
-      csvText = await callGeminiClean(batchText, apiKey, rules, signal, userAnswers, globalInstruction);
+      csvText = await callAIClean(batchText, apiKey, rules, signal, userAnswers, globalInstruction);
     } catch (err) {
       if (err instanceof Error && (err.message === "Aborted" || err.name === "AbortError")) {
         throw err;

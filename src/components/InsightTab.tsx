@@ -3,7 +3,7 @@ import { Sparkles, Loader2, AlertCircle, RefreshCw, Lightbulb, Target } from "lu
 import type { BillRecord } from "../types/bill";
 import { buildInsightContext } from "../lib/insight";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const ALIYUN_MODEL = "qwen-plus";
 const DEFAULT_API_KEY = "";
 const INSIGHT_CACHE_KEY = "bill_insight_cache";
 const CACHE_VERSION = 3;
@@ -150,17 +150,17 @@ export default function InsightTab({ records, selectedYear, selectedMonth }: Ins
 ${context}`;
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+      const url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key}`,
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: 4096,
-            temperature: 0.5,
-            responseMimeType: "application/json",
-          },
+          model: ALIYUN_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.5,
         }),
       });
 
@@ -169,9 +169,8 @@ ${context}`;
         throw new Error(errBody || `API 错误: ${res.status}`);
       }
 
-      const data = await res.json();
-      let text =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+      let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
       let result: InsightItem[] = [];
