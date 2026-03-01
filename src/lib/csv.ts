@@ -31,9 +31,9 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   const typeText = (row["收支类型"] ?? row["收支"] ?? row["交易类型"] ?? row["类型"])?.trim();
   const categoryText = (row["精细分类"] ?? row["分类"] ?? row["交易分类"] ?? "")?.trim();
   
-  // 如果分类包含“理财”、“金融”、“基金”、“股票”、“转账”、“提现”、“还款”、“借款”，强制标记为“不计收支” (transfer)
-  // 移除了“充值”、“红包”、“零钱”，因为它们可能是实际消费或需要冲抵的真实收支
-  const isFinancialTransfer = /理财|金融|基金|股票|转账|提现|还款|借款/.test(categoryText);
+  // 如果分类包含“理财”、“金融”、“基金”、“股票”、“提现”、“还款”、“借款”，强制标记为“不计收支” (transfer)
+  // 移除了“充值”、“红包”、“零钱”、“转账”，因为它们可能是实际消费或需要冲抵的真实收支（如 AA 收款）
+  const isFinancialTransfer = /理财|金融|基金|股票|提现|还款|借款/.test(categoryText);
 
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
   const netRaw = row["金额_净值"];
