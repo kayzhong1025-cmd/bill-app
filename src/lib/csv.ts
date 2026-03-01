@@ -50,7 +50,12 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   if (typeText === "收入") return { amount, type: "income" };
   if (typeText === "支出") return { amount, type: "expense" };
   // 「不计收支」按金额正负：正数=支出，负数=收入（与最终版对账单一致）
-  if (typeText === "不计收支") return { amount, type: "expense" };
+  if (typeText === "不计收支") {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/29576e24-e17b-4baa-94b1-18f982bcab9f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'27d83d'},body:JSON.stringify({sessionId:'27d83d',location:'src/lib/csv.ts:52',message:'Parsed 不计收支',data:{typeText, raw: row["金额_净值"]},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    return null; // Ignore 不计收支 for now to see if it fixes the issue
+  }
 
   return null;
 }

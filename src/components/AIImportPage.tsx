@@ -190,13 +190,17 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
     }
   };
 
-  const handleConfirmQuestions = () => {
+    const handleConfirmQuestions = () => {
     // 如果概览已经生成好了，直接跳过去；否则显示 loading
     if (summary) {
       setStep(5);
     } else {
       runSummary();
     }
+  };
+
+  const handleRegenerateSummary = () => {
+    runSummary();
   };
 
   const runProcessing = async () => {
@@ -802,6 +806,12 @@ export default function AIImportPage({ apiKey, onImport, onClose }: AIImportPage
                   )}
 
                   <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={handleRegenerateSummary}
+                      className="rounded-xl px-6 py-2.5 font-medium text-violet-600 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-900/30"
+                    >
+                      重新生成概览
+                    </button>
                     <button
                       onClick={() => setStep(1)}
                       className="rounded-xl px-6 py-2.5 font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"

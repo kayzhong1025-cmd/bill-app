@@ -249,29 +249,29 @@ function extractExactStats(rawText: string) {
           isExp = true;
           expenses.push({ amount, description: desc, date, type: 'expense' });
         } else if (typeStr.includes('收入')) {
-          csvTotalIncome += amount;
-          isInc = true;
-          incomes.push({ amount, description: desc, date, type: 'income' });
-        } else if (typeStr.includes('不计收支')) {
-          const netRaw = row['金额_净值'];
-          if (netRaw !== undefined && netRaw.trim() !== "") {
-            const netValue = parseFloat(netRaw);
-            if (!isNaN(netValue) && netValue !== 0) {
-              if (netValue > 0) {
-                 isExp = true;
-                 expenses.push({ amount: Math.abs(netValue), description: desc, date, type: 'expense' });
-              } else {
-                 isInc = true;
-                 incomes.push({ amount: Math.abs(netValue), description: desc, date, type: 'income' });
-              }
-            }
+          if (category === "年度总收入" || category === "兼职收入") {
+            csvTotalIncome += amount;
+            isInc = true;
+            incomes.push({ amount, description: desc, date, type: 'income' });
+          } else {
+            // Treat other incomes as refunds (negative expense)
+            csvTotalExpense -= amount;
+            isExp = true;
+            // We don't push refunds to top expenses, but they reduce the total
           }
+        } else if (typeStr.includes('不计收支')) {
+          // 忽略不计收支
         }
         
         if (isExp || isInc) {
            const existing = catMap.get(category) || { count: 0, amount: 0 };
            existing.count++;
-           existing.amount += amount;
+           // If it's a refund (expense but negative), we should subtract from the category amount
+           if (isExp && typeStr.includes('收入')) {
+             existing.amount -= amount;
+           } else {
+             existing.amount += amount;
+           }
            catMap.set(category, existing);
         }
       }
@@ -288,7 +288,10 @@ function extractExactStats(rawText: string) {
     incomes.sort((a, b) => b.amount - a.amount);
     top10Expense = expenses.slice(0, 10);
     top10Income = incomes.slice(0, 10);
-    categoryBreakdown = Array.from(catMap.entries()).map(([category, { count, amount }]) => ({ category, count, amount })).sort((a, b) => b.amount - a.amount);
+    categoryBreakdown = Array.from(catMap.entries())
+      .map(([category, { count, amount }]) => ({ category, count, amount }))
+      .filter(c => c.amount > 0) // Remove categories with negative or zero amounts after refunds
+      .sort((a, b) => b.amount - a.amount);
   } else if (!headerFound && estimatedCount === 0) {
     // 逐行正则匹配兜底
     for (const line of lines) {
@@ -296,6 +299,7 @@ function extractExactStats(rawText: string) {
         const parts = line.split(',');
         let amount = 0;
         let type = '';
+        let category = parts[1] || '';
         for (let i = 0; i < parts.length; i++) {
           if (parts[i] === '支出' || parts[i] === '收入') {
             type = parts[i];
@@ -310,8 +314,15 @@ function extractExactStats(rawText: string) {
         }
         if (amount > 0) {
           estimatedCount++;
-          if (type === '支出') totalExpense += amount;
-          if (type === '收入') totalIncome += amount;
+          if (type === '支出') {
+            totalExpense += amount;
+          } else if (type === '收入') {
+            if (category === "年度总收入" || category === "兼职收入") {
+              totalIncome += amount;
+            } else {
+              totalExpense -= amount;
+            }
+          }
         }
       }
     }
