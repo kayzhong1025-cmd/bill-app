@@ -43,7 +43,7 @@ const AI_PROMPT = `我有一份微信/支付宝账单文件，请帮我清洗并
 
 export default function App() {
   const [rawData, setRawData] = useState<BillRecord[]>([]);
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");

@@ -67,7 +67,7 @@ export async function saveTheme(theme: ThemeMode) {
 
 export async function loadTheme() {
   const theme = await store.getItem<ThemeMode>(THEME_KEY);
-  return theme ?? "dark";
+  return theme ?? "light";
 }
 
 export async function createBackup(rawData: BillRecord[], documents: DocumentMeta[]): Promise<BackupRecord> {
