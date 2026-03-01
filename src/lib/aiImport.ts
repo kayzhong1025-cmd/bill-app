@@ -105,7 +105,7 @@ categoryBreakdown 列出主要分类。
 recordGuidance 给出 2-4 条具体记录建议，帮助用户判断数据是否准确。`;
 
 /** 从原始文本中启发式提取基础概览（AI 失败时静默兜底，不向用户暴露异常） */
-export function buildFallbackSummary(rawText: string, userAnswers?: Record<string, string>, globalInstruction?: string): DataSummary {
+export function buildFallbackSummary(rawText: string, _userAnswers?: Record<string, string>, _globalInstruction?: string): DataSummary {
   const lines = rawText.split("\n").filter((l) => l.trim());
   let estimatedCount = 0;
   let totalExpense = 0;
