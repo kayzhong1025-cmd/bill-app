@@ -31,9 +31,13 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   const typeText = (row["收支类型"] ?? row["收支"] ?? row["交易类型"] ?? row["类型"])?.trim();
   const categoryText = (row["精细分类"] ?? row["分类"] ?? row["交易分类"] ?? "")?.trim();
   
-  // 如果分类包含“理财”、“金融”、“基金”、“股票”、“提现”、“还款”、“借款”，强制标记为“不计收支” (transfer)
-  // 移除了“充值”、“红包”、“零钱”、“转账”，因为它们可能是实际消费或需要冲抵的真实收支（如 AA 收款）
-  const isFinancialTransfer = /理财|金融|基金|股票|提现|还款|借款/.test(categoryText);
+  // 强化过滤逻辑：不仅看分类，也要看“商品说明”、“交易对方”、“备注”，因为原始账单里理财类往往写在这些字段里
+  const allText = `${categoryText} ${row["商品说明"] ?? ""} ${row["交易对方"] ?? ""} ${row["备注"] ?? ""}`.trim();
+  const isFinancialTransfer = /理财|金融|基金|股票|提现|还款|借款|余额宝|理财通|网商银行/.test(allText);
+
+  // 对于完全没有标明“收入/支出/不计收支”，并且我们也没有识别出理财关键词的记录
+  // 以前的逻辑是直接 return null 忽略。但这会导致原始账单里只有金额没标类型的**真实消费**被漏掉！
+  // 所以我们判断：只要没有被明确识别为“理财”，并且有有效的负数（收入）或正数（支出）金额，我们就给它兜底解析。
 
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
   const netRaw = row["金额_净值"];
@@ -51,11 +55,6 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
     }
   }
 
-  // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
-  if (typeText && !typeText.includes("收入") && !typeText.includes("支出") && !typeText.includes("不计收支")) {
-    return null; // 如果明确不是这三种类型，直接忽略，不再兜底为支出
-  }
-
   if (isFinancialTransfer || (typeText && typeText.includes("不计收支"))) {
     const raw = row["金额"] || row["金额_净值"] || row["金额(元)"] || "0";
     const amount = Math.abs(cleanAmount(raw));
@@ -63,15 +62,22 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
     return { amount, type: "transfer" };
   }
 
-  // 退级使用 "金额" 和 "收支"
+  // 如果代码走到这里，说明：
+  // 1. 不是理财转账 (isFinancialTransfer = false)
+  // 2. 不是明确的“不计收支”
+
+  // 兜底使用 "金额" 和 "收支"
   const raw = row["金额"] || row["金额(元)"] || row["金额_净值"] || "0";
   const amount = Math.abs(cleanAmount(raw));
-  if (!Number.isFinite(amount)) return null;
+  if (!Number.isFinite(amount) || amount === 0) return null;
 
+  // 根据明确的类型文本判断
   if (typeText && typeText.includes("收入")) return { amount, type: "income" };
   if (typeText && typeText.includes("支出")) return { amount, type: "expense" };
 
-  return null;
+  // 如果连明确的类型文本都没有（比如原始文件很多字段都是空的），但我们确认它不是理财
+  // 我们默认把正数当做支出，这可以挽救很多被漏掉的无类型消费记录
+  return { amount, type: "expense" };
 }
 
 export function validateCsvHeaders(headers: string[]) {
