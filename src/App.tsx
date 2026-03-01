@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Sparkles, Download, PieChart, ArrowRight, ShieldCheck, HardDrive, WifiOff } from "lucide-react";
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { loadRawData, loadTheme, saveRawData, saveTheme, loadDocuments, saveDocuments, createBackup, listBackups } from "./lib/storage";
 import { getFilteredRecords, toYearOptions, toCategoryOptions } from "./lib/analytics";
 import type { BillRecord, DashboardViewType, ThemeMode, DocumentMeta } from "./types/bill";
@@ -492,6 +493,7 @@ export default function App() {
           />
         )}
       </div>
+      <SpeedInsights />
     </div>
   );
 }
@@ -511,4 +513,3 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
     </button>
   );
 }
-
