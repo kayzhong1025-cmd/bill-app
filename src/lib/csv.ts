@@ -37,7 +37,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   if (typeText === "不计收支") {
     const raw = row["金额"] || row["金额_净值"] || "0";
     const amount = Math.abs(cleanAmount(raw));
-    if (!Number.isFinite(amount) || amount === 0) return null;
+    if (!Number.isFinite(amount)) return null;
     return { amount, type: "transfer" };
   }
 
@@ -45,11 +45,11 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   const netRaw = row["金额_净值"];
   if (netRaw !== undefined && netRaw.trim() !== "") {
     const netValue = cleanAmount(netRaw);
-    if (!Number.isNaN(netValue) && netValue !== 0) {
+    if (!Number.isNaN(netValue)) {
       // 净值 > 0 视为支出，净值 < 0 视为收入
       return {
         amount: Math.abs(netValue),
-        type: netValue > 0 ? "expense" : "income",
+        type: netValue > 0 ? "expense" : netValue < 0 ? "income" : typeText === "收入" ? "income" : "expense",
       };
     }
   }
@@ -57,7 +57,7 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
   // 退级使用 "金额" 和 "收支"
   const raw = row["金额"] || "0";
   const amount = Math.abs(cleanAmount(raw));
-  if (!Number.isFinite(amount) || amount === 0) return null;
+  if (!Number.isFinite(amount)) return null;
 
   if (typeText === "收入") return { amount, type: "income" };
   if (typeText === "支出") return { amount, type: "expense" };
