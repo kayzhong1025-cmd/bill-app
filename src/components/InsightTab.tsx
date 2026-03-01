@@ -159,6 +159,7 @@ ${context}`;
           generationConfig: {
             maxOutputTokens: 4096,
             temperature: 0.5,
+            responseMimeType: "application/json",
           },
         }),
       });
@@ -253,7 +254,10 @@ ${context}`;
         saveCachedInsights(selectedYear, selectedMonth, result);
       } else {
         setInsights(null);
-        if (text) setError("AI 返回格式异常，无法解析洞见。请点击「重新生成」重试。");
+        if (text) {
+          console.error("[Insight Parse Error] text:", text);
+          setError("AI 返回格式异常，无法解析洞见。已在控制台输出日志，请尝试点击「重新生成」。");
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "请求失败，请检查网络和 API Key");
