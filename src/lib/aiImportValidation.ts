@@ -172,7 +172,7 @@ export function isValidBillRecord(r: unknown): r is BillRecord {
     o.hash.length > 0 &&
     (o.type === "income" || o.type === "expense" || o.type === "transfer") &&
     typeof o.dateStr === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(o.dateStr) &&
+    /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(o.dateStr) &&
     typeof o.amount === "number" &&
     Number.isFinite(o.amount) &&
     o.amount !== 0
