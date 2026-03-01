@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Sparkles, Download, PieChart, ArrowRight, ShieldCheck, HardDrive, WifiOff } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 import { loadRawData, loadTheme, saveRawData, saveTheme, loadDocuments, saveDocuments, createBackup, listBackups } from "./lib/storage";
 import { getFilteredRecords, toYearOptions, toCategoryOptions } from "./lib/analytics";
 import type { BillRecord, DashboardViewType, ThemeMode, DocumentMeta } from "./types/bill";
@@ -381,7 +382,7 @@ export default function App() {
             <h2 className="mb-4 text-3xl font-bold text-slate-800 dark:text-white">欢迎使用 Bill App</h2>
             <div className="mb-10 max-w-2xl text-center">
               <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                记账是为了更好地记录生活，<strong className="font-semibold text-violet-600 dark:text-violet-400">无需时时紧绷</strong>。
+                记账是为了更好地记录生活，<strong className="font-semibold text-violet-600 dark:text-violet-400">无需时时紧��</strong>。
               </p>
               <p className="mt-2 text-slate-500 dark:text-slate-400">
                 不用每天为了几块钱强迫自己记账。你只需要养成<strong className="font-medium text-slate-700 dark:text-slate-200">定期（比如月末）导出账单并上传</strong>的习惯，剩下的繁琐整理、分类和复盘，全部交给 AI 帮你完成。
@@ -492,6 +493,7 @@ export default function App() {
           />
         )}
       </div>
+      <Analytics />
     </div>
   );
 }
