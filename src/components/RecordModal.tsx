@@ -90,6 +90,17 @@ export default function RecordModal({ onClose, onSave, existingCategories }: Rec
               />
               <span className="font-semibold">收入</span>
             </label>
+            <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 transition has-[:checked]:border-slate-500 has-[:checked]:bg-slate-200 has-[:checked]:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:has-[:checked]:border-slate-500/50 dark:has-[:checked]:bg-slate-500/20 dark:has-[:checked]:text-slate-300">
+              <input
+                type="radio"
+                name="type"
+                value="transfer"
+                className="hidden"
+                checked={type === "transfer"}
+                onChange={() => setType("transfer")}
+              />
+              <span className="font-semibold">不计收支</span>
+            </label>
           </div>
 
           <div>

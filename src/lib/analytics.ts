@@ -126,7 +126,6 @@ export function toYearOptions(records: BillRecord[]) {
   return [...new Set(records.map((r) => r.year))].sort((a, b) => Number(b) - Number(a));
 }
 
-export function toCategoryOptions(records: BillRecord[], viewType: DashboardViewType) {
-  const targetType = viewType === "income" ? "income" : "expense";
-  return [...new Set(records.filter((r) => r.type === targetType).map((r) => r.category))].sort();
+export function toCategoryOptions(records: BillRecord[]) {
+  return [...new Set(records.map((r) => r.category))].sort();
 }

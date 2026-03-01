@@ -42,7 +42,7 @@ export interface TopItem {
   amount: number;
   description: string;
   date?: string;
-  type?: "income" | "expense";
+  type?: "income" | "expense" | "transfer";
 }
 
 export interface CategoryItem {

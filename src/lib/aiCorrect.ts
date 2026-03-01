@@ -45,7 +45,7 @@ ${recordsJson}
 1. 输出纯 JSON 数组，不要任何解释
 2. 数组长度必须与输入相同，顺序一致
 3. 每条记录必须包含：hash, type, dateStr, year, month, day, category, amount, counterparty, description, source, necessity, remark
-4. type 只能是 "income" 或 "expense"
+4. type 只能是 "income"、"expense" 或 "transfer"
 5. amount 为正数
 6. 若某条不需修改，保持原样`;
 
@@ -95,7 +95,7 @@ ${recordsJson}
       continue;
     }
     const o = raw as Record<string, unknown>;
-    const type = o.type === "income" || o.type === "expense" ? o.type : records[i].type;
+    const type = o.type === "income" || o.type === "expense" || o.type === "transfer" ? o.type : records[i].type;
     const amount = typeof o.amount === "number" && o.amount > 0 ? o.amount : records[i].amount;
     const description = typeof o.description === "string" ? o.description.substring(0, 80) : records[i].description;
     const hash = `${o.dateStr ?? records[i].dateStr}_${type}_${amount}_${description}`;

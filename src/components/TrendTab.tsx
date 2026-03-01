@@ -39,7 +39,7 @@ export default function TrendTab({ records, selectedYear, selectedMonth, isDark,
       const key = `${r.year}-${r.month}`;
       const current = sums.get(key) || { income: 0, expense: 0 };
       if (r.type === "income") current.income += r.amount;
-      else current.expense += r.amount;
+      else if (r.type === "expense") current.expense += r.amount;
       sums.set(key, current);
     });
 

@@ -1,5 +1,5 @@
 export type ThemeMode = "light" | "dark";
-export type BillType = "income" | "expense";
+export type BillType = "income" | "expense" | "transfer";
 export type DashboardViewType = "income" | "expense";
 
 export interface BillRecord {

@@ -57,9 +57,12 @@ export default function DayRecordsModal({ dateStr, records, onClose, onEditRecor
                 ) : (
                   dayRecords.map((r) => {
                     const isExp = r.type === "expense";
-                    const color = isExp ? "text-slate-900 dark:text-slate-200" : "text-green-600 dark:text-green-400";
+                    const isTransfer = r.type === "transfer";
+                    const color = isExp ? "text-slate-900 dark:text-slate-200" : isTransfer ? "text-slate-500 dark:text-slate-400" : "text-green-600 dark:text-green-400";
                     const typeBg = isExp
                       ? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                      : isTransfer
+                      ? "bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300"
                       : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
 
                     return (
@@ -70,7 +73,7 @@ export default function DayRecordsModal({ dateStr, records, onClose, onEditRecor
                       >
                         <td className="whitespace-nowrap p-3">
                           <span className={`rounded px-2 py-1 text-xs font-medium ${typeBg}`}>
-                            {isExp ? "支出" : "收入"}
+                            {isExp ? "支出" : isTransfer ? "不计收支" : "收入"}
                           </span>
                         </td>
                         <td className="whitespace-nowrap p-3">{r.category}</td>
@@ -81,7 +84,7 @@ export default function DayRecordsModal({ dateStr, records, onClose, onEditRecor
                           {r.description}
                         </td>
                         <td className={`whitespace-nowrap p-3 text-right font-medium ${color}`}>
-                          {isExp ? "-" : "+"}¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+                          {isExp ? "-" : isTransfer ? "" : "+"}¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                         </td>
                         <td className="p-3">
                           <button

@@ -78,6 +78,7 @@ export default function EditRecordModal({ record, onClose, onSave, existingCateg
             >
               <option value="expense">支出</option>
               <option value="income">收入</option>
+              <option value="transfer">不计收支</option>
             </select>
           </div>
 

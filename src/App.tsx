@@ -238,7 +238,7 @@ export default function App() {
 
   const yearOptions = toYearOptions(rawData);
   const recordsForCategoryOptions = getFilteredRecords(rawData, selectedYear, selectedMonth);
-  const categoryOptions = toCategoryOptions(recordsForCategoryOptions, viewType);
+  const categoryOptions = toCategoryOptions(recordsForCategoryOptions);
   
   const filteredRecords = getFilteredRecords(rawData, selectedYear, selectedMonth, selectedCategory);
   const hasData = rawData.length > 0;
@@ -247,6 +247,7 @@ export default function App() {
   const categoriesByType = {
     income: Array.from(new Set(rawData.filter((r) => r.type === "income").map((r) => r.category))).sort(),
     expense: Array.from(new Set(rawData.filter((r) => r.type === "expense").map((r) => r.category))).sort(),
+    transfer: Array.from(new Set(rawData.filter((r) => r.type === "transfer").map((r) => r.category))).sort(),
   };
 
   if (loading) {

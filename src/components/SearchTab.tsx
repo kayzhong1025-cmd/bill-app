@@ -89,7 +89,7 @@ export default function SearchTab({ records, onEditRecord, onDeleteRecord, onBat
   const [keyword, setKeyword] = useState("");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "expense" | "income" | "transfer">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -240,12 +240,13 @@ export default function SearchTab({ records, onEditRecord, onDeleteRecord, onBat
             <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">类型</label>
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "expense" | "income")}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "expense" | "income" | "transfer")}
               className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800"
             >
               <option value="all">全部收支</option>
               <option value="expense">仅支出</option>
               <option value="income">仅收入</option>
+              <option value="transfer">仅不计收支</option>
             </select>
           </div>
           <div className="md:col-span-2">
@@ -373,9 +374,12 @@ export default function SearchTab({ records, onEditRecord, onDeleteRecord, onBat
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                 {paginatedResults.map((r) => {
                   const isExp = r.type === "expense";
-                  const color = isExp ? "text-slate-900 dark:text-slate-200" : "text-green-600 dark:text-green-400";
+                  const isTransfer = r.type === "transfer";
+                  const color = isExp ? "text-slate-900 dark:text-slate-200" : isTransfer ? "text-slate-500 dark:text-slate-400" : "text-green-600 dark:text-green-400";
                   const typeBg = isExp
                     ? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                    : isTransfer
+                    ? "bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300"
                     : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
                   return (
                     <tr
@@ -395,7 +399,7 @@ export default function SearchTab({ records, onEditRecord, onDeleteRecord, onBat
                       <td className="truncate p-3 text-slate-500 dark:text-slate-400">{r.dateStr.split(" ")[0]}</td>
                       <td className="truncate p-3">
                         <span className={`rounded px-2 py-1 text-xs font-medium ${typeBg}`}>
-                          {isExp ? "支出" : "收入"}
+                          {isExp ? "支出" : isTransfer ? "不计收支" : "收入"}
                         </span>
                       </td>
                       <td className="truncate p-3">{r.category}</td>
@@ -406,7 +410,7 @@ export default function SearchTab({ records, onEditRecord, onDeleteRecord, onBat
                         {r.description}
                       </td>
                       <td className={`truncate p-3 text-right font-medium ${color}`}>
-                        {isExp ? "-" : "+"}¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
+                        {isExp ? "-" : isTransfer ? "" : "+"}¥{r.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-3" onClick={(e) => e.stopPropagation()}>
                         <button

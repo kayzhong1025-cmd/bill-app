@@ -22,11 +22,18 @@ function normalizeDate(input?: string) {
   };
 }
 
-function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "expense" } | null {
+function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "expense" | "transfer" } | null {
   const typeText = (row["收支类型"] ?? row["收支"])?.trim();
   // 仅接受：收入、支出、不计收支（与最终版对账单一致），其它如转账/交易关闭等忽略
   if (typeText && typeText !== "收入" && typeText !== "支出" && typeText !== "不计收支") {
     return null;
+  }
+
+  if (typeText === "不计收支") {
+    const raw = row["金额"] || row["金额_净值"] || "0";
+    const amount = Math.abs(Number.parseFloat(raw));
+    if (!Number.isFinite(amount) || amount === 0) return null;
+    return { amount, type: "transfer" };
   }
 
   // 优先使用 "金额_净值"（与最终版对账单格式一致）
@@ -49,13 +56,6 @@ function parseAmountAndType(row: CsvRow): { amount: number; type: "income" | "ex
 
   if (typeText === "收入") return { amount, type: "income" };
   if (typeText === "支出") return { amount, type: "expense" };
-  // 「不计收支」按金额正负：正数=支出，负数=收入（与最终版对账单一致）
-  if (typeText === "不计收支") {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/29576e24-e17b-4baa-94b1-18f982bcab9f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'27d83d'},body:JSON.stringify({sessionId:'27d83d',location:'src/lib/csv.ts:52',message:'Parsed 不计收支',data:{typeText, raw: row["金额_净值"]},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    return null; // Ignore 不计收支 for now to see if it fixes the issue
-  }
 
   return null;
 }
@@ -89,7 +89,7 @@ export function rowsToRecords(rows: CsvRow[], documentId?: string) {
 
       const category = (row["精细分类"] ?? row["审计分类"])?.trim() || "未分类";
 
-      if (type === "income" && category !== "年度总收入" && category !== "兼职收入") {
+      if (type === "income" && !(category === "年度总收入" || category === "兼职收入" || category === "其他收入" || category.includes("收入"))) {
         type = "expense";
         amount = -amount;
       }

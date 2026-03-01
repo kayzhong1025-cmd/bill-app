@@ -89,7 +89,7 @@ export function sanitizeDataSummary(parsed: Record<string, unknown>): DataSummar
       amount,
       description,
       date: typeof o.date === "string" ? o.date : undefined,
-      type: o.type === "income" || o.type === "expense" ? o.type : undefined,
+      type: o.type === "income" || o.type === "expense" || o.type === "transfer" ? o.type : undefined,
     };
   };
 
@@ -170,7 +170,7 @@ export function isValidBillRecord(r: unknown): r is BillRecord {
   return (
     typeof o.hash === "string" &&
     o.hash.length > 0 &&
-    (o.type === "income" || o.type === "expense") &&
+    (o.type === "income" || o.type === "expense" || o.type === "transfer") &&
     typeof o.dateStr === "string" &&
     /^\d{4}-\d{2}-\d{2}$/.test(o.dateStr) &&
     typeof o.amount === "number" &&
