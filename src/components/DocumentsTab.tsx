@@ -6,8 +6,7 @@ import { listBackups, restoreBackup, deleteBackup, type BackupRecord } from "../
 const CSV_HEADERS = [
   "交易时间",
   "精细分类",
-  "审计分类",
-  "收支类型",
+  "收支",
   "金额",
   "金额_净值",
   "交易对方",
@@ -19,12 +18,11 @@ const CSV_HEADERS = [
 
 function recordToCsvRow(r: BillRecord): Record<string, string> {
   return {
-    交易时间: r.dateStr,
+    交易时间: r.timeStr ? `${r.dateStr} ${r.timeStr}` : r.dateStr,
     精细分类: r.category,
-    审计分类: r.category,
-    收支类型: r.type === "expense" ? "支出" : "收入",
-    金额: String(r.amount),
-    金额_净值: r.type === "expense" ? String(r.amount) : String(-r.amount),
+    收支: r.type === "expense" ? "支出" : r.type === "transfer" ? "不计收支" : "收入",
+    金额: String(Math.abs(r.amount)),
+    金额_净值: String(r.amount),
     交易对方: r.counterparty,
     商品说明: r.description,
     来源: r.source,

@@ -6,6 +6,7 @@ export interface BillRecord {
   hash: string;
   type: BillType;
   dateStr: string;
+  timeStr?: string;
   year: string;
   month: string;
   day: string;

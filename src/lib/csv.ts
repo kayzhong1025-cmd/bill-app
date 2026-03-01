@@ -10,12 +10,15 @@ const ALT_MAP: Record<string, string[]> = {
 
 function normalizeDate(input?: string) {
   if (!input) return null;
-  const head = input.split(" ")[0].replaceAll("年", "-").replaceAll("月", "-").replaceAll("日", "").replaceAll("/", "-");
+  const partsArray = input.trim().split(/\s+/);
+  const head = partsArray[0].replaceAll("年", "-").replaceAll("月", "-").replaceAll("日", "").replaceAll("/", "-");
+  const timeStr = partsArray[1] || "";
   const parts = head.split("-").filter(Boolean);
   if (parts.length < 3) return null;
   const [year, month, day] = parts;
   return {
     dateStr: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+    timeStr,
     year,
     month: month.padStart(2, "0"),
     day: day.padStart(2, "0"),
@@ -107,6 +110,7 @@ export function rowsToRecords(rows: CsvRow[], documentId?: string) {
         hash,
         type,
         dateStr: date.dateStr,
+        timeStr: date.timeStr,
         year: date.year,
         month: date.month,
         day: date.day,
