@@ -1,27 +1,50 @@
 import { useState, useCallback } from "react";
 import { Download, MessageSquareText, Copy, Check, X, BookOpen } from "lucide-react";
 
-export const AI_PROMPT = `我有一份微信/支付宝账单文件，请帮我清洗并转换成标准化的 CSV 格式。
+export const AI_PROMPT = `📂 个人财务数据清洗与标准化审计专家 (Open Prompt)
+# Role: 你是一位资深的个人财务审计专家和数据架构师。你的任务是将用户从不同支付平台（如微信、支付宝、银行App）导出的碎片化、非标准原始账单，转化为一份专业、可追溯且逻辑严密的“审计级”财务对账单。
 
-【必须严格按此表头输出】
-交易时间,精细分类,收支,金额,金额_净值,交易对方,商品说明,来源,必要性打标,备注
+## 1. 目标表头 (Standard Schema)
+所有输出必须严格映射到以下字段：
+交易时间, 精细分类, 收支, 金额, 金额_净值, 交易对方, 商品说明, 来源, 必要性打标, 备注
 
-【字段规则】
-- 交易时间：保留原始格式，如 2026-02-17 10:13:53
-- 精细分类（支出类）：餐饮美食 / 交通出行 / 日常购物 / 住房物业 / 娱乐消费 / 医疗健康 / 人情往来 / 其他支出
-- 精细分类（收入类）：工资薪资 / 兼职收入 / 其他收入
-- 收支：只填「收入」「支出」或「不计收支」（转账、充值等填「不计收支」）
-- 金额：绝对值，正数，不含 ¥ 符号
-- 金额_净值：支出填正数，收入填负数（如收入 5000 元填 -5000）
-- 交易对方：原始交易对方名称
-- 商品说明：商品名称或备注
-- 来源：微信 或 支付宝
-- 必要性打标：刚性支出 / 弹性支出 / 可选支出 / 不计收支
-- 备注：留空即可
+## 2. 核心审计逻辑 (The "Gold Standard" Logic)
+净值化计算 (Net Amount)：
+核心公式：金额_净值 = (收支 == '支出' ? 金额 : -金额)。
+目的：确保在后续加总时，退款和回款能自动抵扣支出，反映真实成本。
 
-【过滤规则】跳过状态为「交易关闭」「已退款」「对方已退还」的记录
+SSOT 唯一事实来源去重：
+若检测到同一时间、同一金额的电子流水（系统生成）与手动账单（用户记账），优先保留电子流水，剔除手动项以防止虚增。
 
-请只输出 CSV 内容，不要任何说明文字，不要代码块。`;
+回冲/对冲识别 (Offsetting)：
+识别收入项中的“AA回款”、“退款”、“群收款”。
+逻辑：这些收入不计入“年度总收入”，而是将其分类设为对应的消费类目（如餐饮），用负数抵消该类目的总支出。
+
+噪声过滤：
+自动识别并剔除“交易关闭”、“已退款”、“解冻成功”等不产生真实资金流动的记录。
+
+## 3. 通用分类字典 (General Categorization)
+请根据以下特征进行智能穿透归类（严禁使用“日常支出”等模糊词）：
+餐饮美食：餐厅、外卖、咖啡、便利店、扫码点单。
+交通通勤：打车、地铁、公交、共享单车、加油、停车费、车险。
+住房物业：房租、水费、电费、燃气费、物业管理、家政保洁。
+日常购物：电商平台（淘宝/京东/拼多多）、超市、数码电子、服装鞋帽。
+差旅旅游：机票、火车票（非通勤）、酒店住宿、景区门票、旅行保险、异地消费。
+休闲运动：健身房、球类运动、电影、剧院、艺术展览、游戏娱乐。
+医疗健康：医院挂号、药店、体检、保险理费。
+人情往来：红包发送、礼物购买、借款转出。
+金融理财：信用卡还款、基金买入、理财转账。
+年度总收入：工资、奖金、股息。
+兼职收入：劳务报酬、副业收入。
+
+## 4. 自动化备注注入 (Smart Tagging)
+场景识别：若“交通通勤”发生于当地时间 21:00 之后，在备注中自动标注“加班/深夜归家”。
+频率识别：识别出周期性的固定支出（如房租、订阅费）并标注。
+
+## 5. 交互与输出流程
+预处理提问：识别到大额（如单笔 >5000 元）或模糊的收入转账时，列清单询问用户：“此笔属于‘收入’、‘对冲’还是‘理财往来’？”
+数据清洗：确认逻辑后，执行全量清洗。
+最终交付：仅提供一段纯文本的、符合标准表头的 CSV 内容，不要使用 markdown 代码块包裹，也不要任何解释性文字。`;
 
 export function ImportGuideContent() {
   const [promptCopied, setPromptCopied] = useState(false);
@@ -71,10 +94,10 @@ export function ImportGuideContent() {
           <h3 className="font-bold text-slate-800 dark:text-slate-100">用 AI 清洗数据</h3>
         </div>
         <div className="flex-1 space-y-3 text-sm text-slate-600 dark:text-slate-400">
-          <p>打开你常用的 AI 助手（如 <a href="https://kimi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">Kimi</a>、<a href="https://tongyi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">通义千问</a>、<a href="https://chatgpt.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">ChatGPT</a> 等），上传你的账单文件，然后发送下面这段提示词：</p>
+          <p>打开你常用的 AI 助手（强烈推荐 <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">Google Gemini</a>，或 <a href="https://kimi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">Kimi</a>、<a href="https://tongyi.aliyun.com" target="_blank" rel="noopener noreferrer" className="font-medium text-violet-600 hover:underline dark:text-violet-400">通义千问</a>），上传你的账单文件，然后发送下面这段提示词：</p>
           <div className="relative rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
             <p className="line-clamp-3 font-mono text-xs leading-relaxed text-slate-500 dark:text-slate-500">
-              我有一份微信/支付宝账单文件，请帮我清洗并转换成标准化的 CSV 格式…
+              📂 个人财务数据清洗与标准化审计专家...
             </p>
             <button
               type="button"
