@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { PieChart, HardDrive, WifiOff, ShieldCheck, ArrowRight } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 import { loadRawData, loadTheme, saveRawData, saveTheme, loadDocuments, saveDocuments, createBackup, listBackups } from "./lib/storage";
 import { getFilteredRecords, toYearOptions, toCategoryOptions } from "./lib/analytics";
 import type { BillRecord, DashboardViewType, ThemeMode, DocumentMeta } from "./types/bill";
@@ -462,6 +463,7 @@ export default function App() {
 
         {isImportGuideOpen && <ImportGuideModal onClose={() => setIsImportGuideOpen(false)} />}
         {isHelpOpen && <HelpModal onClose={() => setIsHelpOpen(false)} />}
+        <Analytics />
       </div>
     </div>
   );
