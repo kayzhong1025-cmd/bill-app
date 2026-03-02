@@ -151,8 +151,17 @@ export default function InsightTab({ records, selectedYear, selectedMonth }: Ins
 
     const context = buildInsightContext(records, selectedYear, selectedMonth);
     const periodLabel = getPeriodLabel();
+    
+    // 获取当前真实时间，防止 AI 产生“要求补齐未来数据”的幻觉
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
 
     const prompt = `你是一位专业的个人财务分析师。请基于以下账单数据，用中文给出【最重要的 5 条】财务洞见，按优先级从高到低排序。每条包含：发现（问题/现状分析）+ 建议（可执行改进方案）。
+
+【重要背景信息】
+当前真实时间是：${currentYear}年${currentMonth}月。
+如果用户提供的数据只到当前月份，这是完全正常的，请绝对不要在建议中提出“补充缺失月份数据”、“数据不完整”等荒谬要求。
 
 【严格要求】
 1. 全部使用中文，建议要具体可操作
@@ -300,12 +309,20 @@ ${context}`;
       const context = buildInsightContext(records, selectedYear, selectedMonth);
       const periodLabel = getPeriodLabel();
       
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
       const currentInsights = insights || [];
       const existingText = currentInsights.length > 0
         ? `\n\n已经存在的洞见有（请勿重复）：\n${currentInsights.map(i => `- ${i.discovery}`).join('\n')}`
         : "";
 
       const prompt = `你是一位专业的个人财务分析师。请基于以下账单数据，给出一个【全新】的财务洞见（包含发现和建议）。${existingText}
+
+【重要背景信息】
+当前真实时间是：${currentYear}年${currentMonth}月。
+如果用户提供的数据只到当前月份，这是完全正常的，请绝对不要在建议中提出“补充缺失月份数据”、“数据不完整”等荒谬要求。
 
 【严格要求】
 1. 全部使用中文，建议要具体可操作
